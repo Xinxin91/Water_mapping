@@ -1,0 +1,111 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Oct 15 14:00:07 2018
+
+@author: wangxin
+"""
+import os,shutil
+import numpy as np
+import os.path
+import sys
+from osgeo import gdal
+from gdalconst import *
+import osr
+
+
+def Readxy(RasterFile): #读取每个图像的信息     
+    ds = gdal.Open(RasterFile,GA_ReadOnly)
+    if ds is None:
+        print ('Cannot open ',RasterFile)
+        sys.exit(1)
+        #cols
+    cols = ds.RasterXSize
+    #rowl
+    rows = ds.RasterYSize
+    #band
+    band = ds.GetRasterBand(1)
+    #read raster as array
+    data = band.ReadAsArray(0,0,cols,rows)
+    #get nodata value
+    noDataValue = band.GetNoDataValue()
+    #get projection
+    projection=ds.GetProjection()
+    #get geotransform
+    geotransform = ds.GetGeoTransform()
+    #获取波段的统计信息
+    stats = band.GetStatistics( True, True )
+    return rows,cols,geotransform,projection,noDataValue
+
+def ReadData(RasterFile): #读取每个图像的信息     
+    ds = gdal.Open(RasterFile,GA_ReadOnly)
+    if ds is None:
+        print ('Cannot open ',RasterFile)
+        sys.exit(1)
+    #band
+    band = ds.GetRasterBand(1)
+    #cols
+    cols = ds.RasterXSize
+    #rowl
+    rows = ds.RasterYSize
+    #read raster as array
+    data = band.ReadAsArray(0,0,cols,rows)
+    return data
+
+def WriteGTiffFile(filename, nRows, nCols, data,geotrans,proj, noDataValue, gdalType):#向磁盘写入结果文件
+    format = "GTiff"   
+    driver = gdal.GetDriverByName(format)
+    ds = driver.Create(filename, nCols, nRows, 1, gdalType)
+    ds.SetGeoTransform(geotrans)
+    ds.SetProjection(proj)
+    ds.GetRasterBand(1).SetNoDataValue(noDataValue)
+    ds.GetRasterBand(1).WriteArray(data)    
+    ds = None
+
+#Name generation using horizontal and vertical number
+def NameGeneration(year,h,v):
+    DirName = water_dir
+    if h >= 100:
+        FileName = 'Qual_usgs578_cfmask01_TShadow_band0_' + str(year) + '_0' + str(h) + '_0' + str(v) + '.tif'
+    else:
+        FileName = 'Qual_usgs578_cfmask01_TShadow_band0_' + str(year) + '_00' + str(h) + '_0' + str(v) + '.tif'
+    return DirName +'\\'+  FileName
+
+
+#山东
+province = 'Chongqing'
+WaterDir = r'D:\Frequency\Water_Mapping\Provinces' + "\\" + province
+
+#年内求多幅影像求和
+for ranks in block:
+    h = ranks[0]
+    v = ranks[1]
+    water_dir = r'D:\Frequency\Water_Mapping'+ '\\h'+str(h) + 'v' + str(v)
+    print(water_dir)
+    for year in range(2012,2014):
+        print (year)
+        raster_list = []
+        origin = NameGeneration(year,h,v)
+        if os.path.exists(origin):
+            raster_list.append(origin)
+        raster_count = len(raster_list)
+        rows,cols,geotransform,projection,noDataValue = Readxy(origin)
+        filesum = [[0.0]*cols]*rows
+        average = [[0.0]*cols]*rows
+        if raster_count > 0:
+            outname = r'E:\FD\water_mapping_China\Qual' + '\\' + 'h' + str(h) +'v' + str(v) + '\\total_qual_'+'h' + str(h) +'_' +'v' + str(v)+'.tif'
+            if os.path.exists(outname):
+                os.remove(outname)
+            for i in range (raster_count):
+                data = ReadData(raster_list[i])
+                filesum = np.add(filesum,data)
+            total = filesum
+            #逐像元便利
+            for i in range(0,rows):
+                for j in range(0,cols):
+                    if(total[i,j]==noDataValue*raster_count):        #处理图像中的noData
+                        total[i,j]=-9999
+                    else: 
+                        total[i,j]=filesum[i,j]
+            WriteGTiffFile(outname,rows, cols, total,geotransform,projection, -noDataValue, GDT_Float32)
+        else:
+            pass

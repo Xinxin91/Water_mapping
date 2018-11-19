@@ -1,0 +1,96 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Nov 19 10:39:18 2018
+
+@author: wangxin
+"""
+
+
+%reset -f
+
+import os,glob
+import numpy as np
+import os.path
+import sys
+from osgeo import gdal
+from gdalconst import *
+import osr
+import pandas as pd
+
+def Readxy(RasterFile): #读取每个图像的信息     
+    ds = gdal.Open(RasterFile,GA_ReadOnly)
+    if ds is None:
+        print ('Cannot open ',RasterFile)
+        sys.exit(1)
+        #cols
+    cols = ds.RasterXSize
+    #rowl
+    rows = ds.RasterYSize
+    #band
+    band = ds.GetRasterBand(1)
+    #read raster as array
+    data = band.ReadAsArray(0,0,cols,rows)
+    #get nodata value
+    noDataValue = band.GetNoDataValue()
+    #get projection
+    projection=ds.GetProjection()
+    #get geotransform
+    geotransform = ds.GetGeoTransform()
+    #获取波段的统计信息
+    stats = band.GetStatistics( True, True )
+    return rows,cols,geotransform,projection,noDataValue
+
+def ReadData(RasterFile): #读取每个图像的信息     
+    ds = gdal.Open(RasterFile,GA_ReadOnly)
+    if ds is None:
+        print ('Cannot open ',RasterFile)
+        sys.exit(1)
+    #band
+    band = ds.GetRasterBand(1)
+    #cols
+    cols = ds.RasterXSize
+    #rowl
+    rows = ds.RasterYSize
+    #read raster as array
+    data = band.ReadAsArray(0,0,cols,rows)
+    return data
+
+def WriteGTiffFile(filename, nRows, nCols, data,geotrans,proj, noDataValue, gdalType):#向磁盘写入结果文件
+    format = "GTiff"   
+    driver = gdal.GetDriverByName(format)
+    ds = driver.Create(filename, nCols, nRows, 1, gdalType)
+    ds.SetGeoTransform(geotrans)
+    ds.SetProjection(proj)
+    ds.GetRasterBand(1).SetNoDataValue(noDataValue)
+    ds.GetRasterBand(1).WriteArray(data)    
+    ds = None
+
+
+
+#read province as list
+f = open(r'E:\FD\water_mapping_China\province_list.txt','r')
+pro_list = [line.strip() for line in f.readlines()]
+f.close()
+
+#f1.open(r'E:\FD\water_mapping_China\province_list.txt','a')
+pro_dir = r'E:\FD\water_mapping_China\tavg_China\Provinces'
+
+df_empty = pd.DataFrame()
+
+#extract tavg images using province mask
+for pro in pro_list:
+    #province .shp
+    mean_list = []
+    i = 0
+    for year in range(1986, 2016):
+        input_path = pro_dir+'\\' + pro
+        img = input_path+'\\' + 'tavg_' + pro + str(year) + '.tif'
+        rows,cols,geotransform,projection,noDataValue = Readxy(img)
+        data = ReadData(img)
+        img_mean =  np.mean(data[data != noDataValue])
+        #img_max = np.max(data[data != noDataValue])
+        #img_min = np.min(data[data != noDataValue])
+        mean_list.append(img_mean)
+    mean_series = pd.Series(mean_list)
+    df_empty.insert(i, pro, mean_series)
+df_empty.to_csv(r'E:\FD\water_mapping_China\tavg_China\tavg_province.csv')

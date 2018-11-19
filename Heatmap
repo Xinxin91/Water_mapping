@@ -1,0 +1,47 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Nov  8 22:30:28 2018
+
+@author: wangxin
+"""
+
+
+%reset -f
+
+import os
+import pandas as pd 
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+ 
+
+
+#读取数据并查看数据的前五行,sheetname=n，其中n表示excel中的工作表的索引（即第n+1个工作表）
+file = r'E:\FD\water_mapping_China\Province_stat\after_mask_0.75_log.csv'
+
+dat = pd.read_csv(file)
+dat2 = dat.iloc[:,1:32]  
+
+province = dat.iloc[:,0]
+year = np.linspace(1986,2016,31)
+year = year.astype(np.int)
+
+
+#%matplotlib qt5
+#设置字体类型
+sns.set_style("ticks",{'font.family': 'Times New Roman'})
+#创建图片大小
+f, ax = plt.subplots(figsize = (15, 8))
+#绘制热力图
+ax = sns.heatmap(dat2,annot=True,cmap='RdBu',square=False)
+#设置标签位置
+ax.set_yticks(np.linspace(0,31,32)+0.5)
+ax.set_xticks(np.linspace(0,30,31)+0.5)
+#设置标签文本
+ax.set_yticklabels(province, rotation='horizontal', fontsize=16)
+ax.set_xticklabels(year,rotation='vertical', fontsize=16)
+#设置轴名
+ax.set_xlabel('Year', fontsize=18)
+ax.set_ylabel('Province', fontsize=18,rotation= 90)
+#保存图片
+f.savefig(r'E:\FD\water_mapping_China\Province_stat\heatmap.png', dpi=600)

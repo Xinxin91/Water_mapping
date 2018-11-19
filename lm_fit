@@ -1,0 +1,66 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct 30 10:37:25 2018
+
+@author: wangxin
+"""
+
+%reset -f
+
+import os
+from scipy import stats
+import pandas as pd 
+import numpy as np
+import matplotlib.pyplot as plt
+ 
+def lm_fit(x,y):
+#线性回归拟合
+    x_m=np.mean(x)
+    y_m=np.mean(y)
+    x1=(x-x_m)
+    y1=y-y_m
+    x2=sum((x-x_m)**2)
+    xy=sum(x1*y1)
+#回归参数的最小二乘估计
+    beta1=xy/x2
+    beta0=y_m-beta1*x_m
+#输出线性回归方程
+    #print('y=',beta0,'+',beta1,'*x')
+#画出回归方程的函数图
+    #a=np.linspace(1000,5000,1000)#b表示在(1000,5000)上生成1000个a值
+    #b=[beta0+beta1*i for i in a] 
+    #plt.plot(a,b,'r')
+#方差
+    sigma2=sum((y-beta0-beta1*x)**2)/(18)
+#标准差
+    sigma=np.sqrt(sigma2)
+#求t值
+    t=beta1*np.sqrt(x2)/sigma
+    #print('t=',t)
+#已知临界值求p值
+    p=stats.t.sf(t,31)
+    #print('p=',p)
+    return beta1, p
+
+
+#读取数据并查看数据的前五行,sheetname=n，其中n表示excel中的工作表的索引（即第n+1个工作表）
+file = r'E:\FD\water_mapping_China\Province_stat\after_mask_分省永久水0.75.xlsx'
+
+dat = pd.read_excel(file)
+#dat = dat.T
+i = 0
+x= np.linspace(1986,2016,31)
+out_file = r'E:\FD\water_mapping_China\Province_stat\coef_p_cal.txt'
+if os.path.exists(out_file):
+    os.remove(out_file)
+f = open(out_file,'a')
+
+while i <= 31:
+    y = dat.iloc[i,1:]
+    pro=dat.iloc[i,0]
+    coef = lm_fit(x,y)[0]
+    p = lm_fit(x,y)[1]
+    f.write(pro +','+ str(coef) +','+ str(p) + '\n')
+    print (pro, coef, p)
+    i = i+1
+f.close()

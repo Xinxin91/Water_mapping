@@ -1,0 +1,77 @@
+import arcpy
+from arcpy.sa import *
+from arcpy import env
+import os
+
+#Check license
+arcpy.CheckOutExtension("Spatial")
+
+####Method in os
+
+#Judge whether exist a file
+def IfFile(Filename):
+    if os.path.isfile(Filename):
+        return True
+    else:
+        return False
+    
+#Delete existed file
+def DelExistedFile(Filename):
+    if os.path.isfile(Filename):
+        os.remove(Filename)
+        
+#Make empty folder
+def MakeDir(outDir):
+    if not os.path.exists(outDir):
+        os.makedirs(outDir)
+        
+####Method in ArcPy
+#Extract By Mask
+def RasterClipSave(inRaster, inMaskData,outRaster):
+    outExtractByMask = ExtractByMask(inRaster, inMaskData)
+    outExtractByMask.save(outRaster)
+
+def RasterMosaic(inRaster,outLocation,outName):
+    arcpy.MosaicToNewRaster_management(inRaster,outLocation, outName, "",\
+                                       "", "", "1", "LAST","FIRST")
+
+###Local method
+#Name generation using horizontal and vertical number
+def NameGeneration(year,h,v):
+    DirName = WaterDir + '\\'+ 'h' + str(h) +'v' + str(v)
+    FileName = 'Freq_usgs578_cfmask01_TShadow_band0_' + str(year) + '_0' + str(h) + '_0' + str(v) + '.tif'
+    return DirName +'\\'+  FileName
+
+###############################################Change Environment#######################
+In = r'E:\FD\water_mapping_China\prcp_China'
+Out = r'E:\FD\water_mapping_China\prcp_China\Provinces'
+#pro_dir = r''
+
+#read province as list
+f = open(r'E:\FD\water_mapping_China\province_list.txt','r')
+pro_list = [line.strip() for line in f.readlines()]
+f.close()
+
+#extract tavg images using province mask
+for pro in pro_list:
+    #province .shp
+    province = r'E:\FD\china_boundary' + '\\' + pro + '.shp'
+    if os.path.exists(province):
+        print(province + ' exsited')
+    for year in xrange(1986, 2016):
+        #set input image
+        img = In + '\\prcp_China_' + str(year) + '.tif'
+        #set outpath
+        out_path = Out+'\\' + pro
+        #make empty dir
+        if not os.path.exists(out_path):
+            os.mkdir(out_path)
+        outname = out_path+'\\' + 'prcp_' + pro + str(year) + '.tif'
+        #delete existing image
+        if os.path.exists(outname):
+            os.remove(outname)
+        #extracting 
+        outExtractByMask = ExtractByMask(img, province)
+        #save
+        outExtractByMask.save(outname)
+        print (pro+ str(year) + ' extracting completed')

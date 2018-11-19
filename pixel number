@@ -1,0 +1,112 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Oct 29 10:21:14 2018
+
+@author: wangxin
+"""
+
+
+%reset -f
+
+import os,glob
+import numpy as np
+import os.path
+import sys
+from osgeo import gdal
+from gdalconst import *
+import osr
+
+def Readxy(RasterFile): #读取每个图像的信息     
+    ds = gdal.Open(RasterFile,GA_ReadOnly)
+    if ds is None:
+        print ('Cannot open ',RasterFile)
+        sys.exit(1)
+        #cols
+    cols = ds.RasterXSize
+    #rowl
+    rows = ds.RasterYSize
+    #band
+    band = ds.GetRasterBand(1)
+    #read raster as array
+    data = band.ReadAsArray(0,0,cols,rows)
+    #get nodata value
+    noDataValue = band.GetNoDataValue()
+    #get projection
+    projection=ds.GetProjection()
+    #get geotransform
+    geotransform = ds.GetGeoTransform()
+    #获取波段的统计信息
+    stats = band.GetStatistics( True, True )
+    return rows,cols,geotransform,projection,noDataValue
+
+def ReadData(RasterFile): #读取每个图像的信息     
+    ds = gdal.Open(RasterFile,GA_ReadOnly)
+    if ds is None:
+        print ('Cannot open ',RasterFile)
+        sys.exit(1)
+    #band
+    band = ds.GetRasterBand(1)
+    #cols
+    cols = ds.RasterXSize
+    #rowl
+    rows = ds.RasterYSize
+    #read raster as array
+    data = band.ReadAsArray(0,0,cols,rows)
+    return data
+
+def WriteGTiffFile(filename, nRows, nCols, data,geotrans,proj, noDataValue, gdalType):#向磁盘写入结果文件
+    format = "GTiff"   
+    driver = gdal.GetDriverByName(format)
+    ds = driver.Create(filename, nCols, nRows, 1, gdalType)
+    ds.SetGeoTransform(geotrans)
+    ds.SetProjection(proj)
+    ds.GetRasterBand(1).SetNoDataValue(noDataValue)
+    ds.GetRasterBand(1).WriteArray(data)    
+    ds = None
+
+#Name generation using horizontal and vertical number
+def NameGeneration(province,year):
+    DirName = WaterDir
+    FileName = 'mask_'+province + '_wf_' + str(year) + '.tif'
+    return DirName +'\\'+  FileName
+
+dir = r'E:\FD\water_mapping_China\Qual\extraction'
+files = glob.glob(dir + '\\*.tif')
+#print(files)
+#testfile = r'E:\FD\water_mapping_China\Qual\extraction\Qual_h70v35.tif'
+#山东
+l_50=0
+l_100=0
+l_150=0
+l_200=0
+l_400=0
+l_600=0
+l_800=0
+l_1000=0
+l_1200=0
+l_1400=0
+l_1600=0
+l_1800=0
+l_2000=0
+l_more=0
+
+#f = open(r'E:\FD\water_mapping_China\Qual\qual_distribution.txt','a')
+
+for file in files:
+    rows,cols,geotransform,projection,noDataValue = Readxy(file)
+    data = ReadData(file)
+    l_50 = l_50 + len(data[(data>=0) & (data<50)])
+    l_100 = l_100 + len(data[(data>=50) & (data<100)])
+    l_150 = l_150 + len(data[(data>=100) & (data<150)])
+    l_200 = l_200 + len(data[(data>=150) & (data<200)])
+    l_400 = l_400 + len(data[(data>=200) & (data<400)])
+    l_600 = l_600 + len(data[(data>=400) & (data<600)])
+    l_800 = l_800 + len(data[(data>=600) & (data<800)])
+    l_1000 = l_1000 + len(data[(data>=800) & (data<1000)])
+    l_1200 = l_1200 + len(data[(data>=1000) & (data<1200)])
+    l_1400 = l_1400 + len(data[(data>=1200) & (data<1400)])
+    l_1600 = l_1600 + len(data[(data>=1400) & (data<1600)])
+    l_1800 = l_1800 + len(data[(data>=1600) & (data<1800)])
+    l_2000 = l_2000 + len(data[(data>=1800) & (data<2000)])
+    l_more = l_more + len(data[(data>=2000) & (data< noDataValue)])
+print(l_50,l_100,l_150,l_200,l_400,l_600,l_800,l_1000,l_1200,l_1400,l_1600,l_1800,l_2000,l_more)
